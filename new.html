@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ar">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://download.agora.io/sdk/release/AgoraRTC_N.js"></script>
+    <title>مكالمة فيديو باستخدام Agora</title>
+    <style>
+        video {
+            width: 45%;
+            margin: 10px;
+            border: 2px solid #000;
+        }
+
+        button {
+            margin: 5px;
+            padding: 10px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>مكالمة فيديو باستخدام Agora</h2>
+    <video id="localVideo" autoplay playsinline></video>
+    <video id="remoteVideo" autoplay playsinline></video>
+    <br>
+    <button onclick="startCall()">بدء المكالمة</button>
+    <button onclick="leaveCall()">إنهاء المكالمة</button>
+
+    <script>
+        const APP_ID = "f7f68d8956ad40ce95ef621d20d56cc1"; // استبدل بمعرف Agora الخاص بك
+        const CHANNEL_NAME = "testChannel";
+        const TOKEN = null; // يمكن تركه null للاختبار
+
+        let client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+        let localTracks = { videoTrack: null, audioTrack: null };
+        let remoteUsers = {};
+
+        async function startCall() {
+            // الانضمام إلى القناة
+            await client.join(APP_ID, CHANNEL_NAME, TOKEN, null);
+
+            // إنشاء مسارات الصوت والفيديو
+            const tracks = await AgoraRTC.createMicrophoneAndCameraTracks();
+            localTracks.audioTrack = tracks[0];
+            localTracks.videoTrack = tracks[1];
+
+            // عرض الفيديو المحلي
+            localTracks.videoTrack.play("localVideo");
+
+            // نشر المسارات إلى القناة
+            await client.publish([localTracks.audioTrack, localTracks.videoTrack]);
+
+            console.log("تم بدء المكالمة!");
+        }
+
+        // التعامل مع المشتركين الجدد
+        client.on("user-published", async (user, mediaType) => {
+            await client.subscribe(user, mediaType);
+
+            if (mediaType === "video") {
+                let remoteVideoTrack = user.videoTrack;
+                remoteVideoTrack.play("remoteVideo");
+            }
+
+            if (mediaType === "audio") {
+                user.audioTrack.play();
+            }
+        });
+
+        function leaveCall() {
+            localTracks.videoTrack.stop();
+            localTracks.videoTrack.close();
+            localTracks.audioTrack.stop();
+            localTracks.audioTrack.close();
+
+            client.leave();
+            document.getElementById('localVideo').srcObject = null;
+            document.getElementById('remoteVideo').srcObject = null;
+
+            console.log("تم إنهاء المكالمة!");
+        }
+    </script>
+</body>
+
+</html>
